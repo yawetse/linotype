@@ -199,7 +199,8 @@ var Slimscroll = function(options){
 			}
 
 			// wrap it
-			domhelper.elementContentWrapInner(me,wrapper);
+			console.log("me",me);
+			domhelper.elementWrap(me,wrapper);
 
 			// append to parent div
 			me.parentNode.appendChild(bar);
@@ -599,6 +600,24 @@ var domhelper = {
 
 		newFirstChild.innerHTML=wrapper_clone.innerHTML;
 	},
+
+	/**
+	 * Wraps element with wrapper
+	 * @method
+	 * @param {node} element - html dom element
+	 * @param {node} wrapperElement - element to wrap html dom element
+	 */
+	elementWrap: function(element,wrapperElement){
+		var elementParent =element.parentNode,
+			element_clone = element.cloneNode(true);
+
+console.log("element",element);
+console.log("elementParent",elementParent);
+console.log("wrapperElement",wrapperElement);
+		elementParent.replaceChild(wrapperElement,element);
+		wrapperElement.appendChild(element);
+	},
+
 
 	/**
 	 * get scroll position of element

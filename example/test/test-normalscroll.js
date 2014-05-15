@@ -87,7 +87,12 @@ var Slimscroll = function(options){
 			railBorderRadius : '7px'// sets border radius of the rail
 		},
 		o = extend( defaults,options ),
-		thisElements = document.querySelectorAll(options.idSelector);
+		thisElements = document.querySelectorAll(options.idSelector),
+		me,
+		rail,
+		bar,
+		barHeight,
+		minBarHeight = 30;
 
 	this.init = function(){
 		// do it for every element that matches selector
@@ -95,11 +100,9 @@ var Slimscroll = function(options){
 			var isOverPanel, isOverBar, isDragg, queueHide, touchDif,
 			barHeight, percentScroll, lastScroll,
 			divS = '<div></div>',
-			minBarHeight = 30,
 			releaseScroll = false;
-
 			// used in event handlers and for better minification
-			var me = thisElements[x], rail, bar;
+			me = thisElements[x];
 
 			// ensure we are not binding it again
 			if( classie.hasClass(me.parentNode,o.wrapperClass) ){
@@ -205,6 +208,9 @@ var Slimscroll = function(options){
 			// append to parent div
 			me.parentNode.appendChild(bar);
 			me.parentNode.appendChild(rail);
+
+			// set up initial height
+			getBarHeight();
 		}
 		/*
 			
@@ -285,19 +291,72 @@ var Slimscroll = function(options){
 	            touchDif = e.originalEvent.touches[0].pageY;
 	          }
 
+        // check start position
+        if (o.start === 'bottom')
+        {
+          // scroll content to bottom
+          bar.css({ top: me.outerHeight() - bar.outerHeight() });
+          scrollContent(0, true);
+        }
+        else if (o.start !== 'top')
+        {
+          // assume jQuery selector
+          scrollContent($(o.start).position().top, null, true);
+
+          // make sure bar stays hidden
+          if (!o.alwaysVisible) { bar.hide(); }
+        }
+
+        // attach scroll events
+        attachWheel();
+
+        function _onWheel(e)
+        {
+          // use mouse wheel only when mouse is over
+          if (!isOverPanel) { return; }
+
+          var e = e || window.event;
+
+          var delta = 0;
+          if (e.wheelDelta) { delta = -e.wheelDelta/120; }
+          if (e.detail) { delta = e.detail / 3; }
+
+          var target = e.target || e.srcTarget || e.srcElement;
+          if ($(target).closest('.' + o.wrapperClass).is(me.parent())) {
+            // scroll content
+            scrollContent(delta, true);
+          }
+
+          // stop window scroll
+          if (e.preventDefault && !releaseScroll) { e.preventDefault(); }
+          if (!releaseScroll) { e.returnValue = false; }
+        }
+
+        
+
+        function attachWheel()
+        {
+          if (window.addEventListener)
+          {
+            this.addEventListener('DOMMouseScroll', _onWheel, false );
+            this.addEventListener('mousewheel', _onWheel, false );
+          }
+          else
+          {
+            document.attachEvent("onmousewheel", _onWheel)
+          }
+        }
 		*/
 	};
 
 	function getBarHeight(){
-		debugger;
 		// calculate scrollbar height and make sure it is not too small
-		// barHeight = Math.max((me.clientHeight / me[0].scrollHeight) * me.clientHeight, minBarHeight);
-		// bar.style.height= barHeight + 'px' ;
+		barHeight = Math.max((me.offsetHeight / me.scrollHeight) * me.offsetHeight, minBarHeight);
+		bar.style.height= barHeight + 'px' ;
 
-		// // hide scrollbar if content is not long enough
-		// var display = (me.clientHeight) ? 'none' : 'block';
-		// barHeight = display;
-		// bar.style.display= display;
+		// hide scrollbar if content is not long enough
+		var display = (me.offsetHeight === barHeight) ? 'none' : 'block';
+		bar.style.display= display;
 	}
 
 	function scrollContent(y, isWheel, isJump){
@@ -390,71 +449,6 @@ var Slimscroll = function(options){
 		// 	}, 1000);
 		// }
 	}
-/*      
-
-        // set up initial height
-        getBarHeight();
-
-        // check start position
-        if (o.start === 'bottom')
-        {
-          // scroll content to bottom
-          bar.css({ top: me.outerHeight() - bar.outerHeight() });
-          scrollContent(0, true);
-        }
-        else if (o.start !== 'top')
-        {
-          // assume jQuery selector
-          scrollContent($(o.start).position().top, null, true);
-
-          // make sure bar stays hidden
-          if (!o.alwaysVisible) { bar.hide(); }
-        }
-
-        // attach scroll events
-        attachWheel();
-
-        function _onWheel(e)
-        {
-          // use mouse wheel only when mouse is over
-          if (!isOverPanel) { return; }
-
-          var e = e || window.event;
-
-          var delta = 0;
-          if (e.wheelDelta) { delta = -e.wheelDelta/120; }
-          if (e.detail) { delta = e.detail / 3; }
-
-          var target = e.target || e.srcTarget || e.srcElement;
-          if ($(target).closest('.' + o.wrapperClass).is(me.parent())) {
-            // scroll content
-            scrollContent(delta, true);
-          }
-
-          // stop window scroll
-          if (e.preventDefault && !releaseScroll) { e.preventDefault(); }
-          if (!releaseScroll) { e.returnValue = false; }
-        }
-
-        
-
-        function attachWheel()
-        {
-          if (window.addEventListener)
-          {
-            this.addEventListener('DOMMouseScroll', _onWheel, false );
-            this.addEventListener('mousewheel', _onWheel, false );
-          }
-          else
-          {
-            document.attachEvent("onmousewheel", _onWheel)
-          }
-        }
-
-        
-
-        
-*/
 };
 
 module.exports = Slimscroll;

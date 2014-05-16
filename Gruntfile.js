@@ -73,8 +73,6 @@ module.exports = function(grunt) {
           'example/test/test-callback.js': ['client/test/scripts/test_callback.js'],
           'example/test/test-fixedheaders.js': ['client/test/scripts/test_fixedheaders.js'],
           'example/test/test-scroll.js': ['client/test/scripts/test_scroll.js'],
-          'example/test/slimscroll-index.js': ['client/test/scripts/slimscroll-index.js'],
-          'example/test/slimscroll-events.js': ['client/test/scripts/slimscroll-events.js'],
           // 'build/main.js': ['client/scripts/**/*.js', 'client/scripts/**/*.coffee'],
         },
         options: {

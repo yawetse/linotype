@@ -45,7 +45,7 @@ var classie = require('classie'),
  * @author yaw joseph etse
  * @module
  */
-var Slimscroll = function(options){
+var slimscroll = function(options,elementsArray){
 	var defaults = {
 			idSelector: 'body',
 			width : 'auto',// width in pixels of the visible scroll area
@@ -73,7 +73,7 @@ var Slimscroll = function(options){
 			railBorderRadius : '7px'// sets border radius of the rail
 		},
 		o = extend( defaults,options ),
-		thisElements = document.querySelectorAll(options.idSelector),
+		thisElements = (elementsArray) ? elementsArray : document.querySelectorAll(options.idSelector),
 		me,
 		rail,
 		bar,
@@ -477,12 +477,12 @@ var Slimscroll = function(options){
 	}
 };
 
-module.exports = Slimscroll;
+module.exports = slimscroll;
 
 // If there is a window object, that at least has a document property,
 // define linotype
 if ( typeof window === "object" && typeof window.document === "object" ) {
-	window.Slimscroll = Slimscroll;
+	window.slimscroll = slimscroll;
 }
 },{"./domhelper":3,"classie":4,"util-extend":6}],3:[function(require,module,exports){
 /*

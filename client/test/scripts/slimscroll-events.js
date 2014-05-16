@@ -2,7 +2,7 @@
 
 // console.log("example test wepps!!s");
 
-var Slimscroll = require('../../../lib/Slimscroll');
+var Slimscroll = require('../../../lib/slimscroll');
 
 function slimscrollEventHandler(e,pos){
     document.querySelector('#testDivOut').innerHTML +="Reached " + pos + ", ";

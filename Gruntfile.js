@@ -73,6 +73,7 @@ module.exports = function(grunt) {
           'example/test/test-callback.js': ['client/test/scripts/test_callback.js'],
           'example/test/test-fixedheaders.js': ['client/test/scripts/test_fixedheaders.js'],
           'example/test/test-scroll.js': ['client/test/scripts/test_scroll.js'],
+          'example/test/test-stroller.js': ['client/test/scripts/test-stroller.js'],
           // 'build/main.js': ['client/scripts/**/*.js', 'client/scripts/**/*.coffee'],
         },
         options: {
@@ -87,7 +88,8 @@ module.exports = function(grunt) {
           yuicompress: true
         },
         files: {
-          "example/build/linotype.css": ['client/stylesheets/**/*.less']
+          "example/build/linotype.css": ['client/stylesheets/**/*.less'],
+          "example/build/stroller.css": ['client/stroller/**/*.less']
         }
       }
     },

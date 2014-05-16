@@ -85,6 +85,7 @@ var Slimscroll = function(options){
 			allowPageScroll : false,// check if mousewheel should scroll the window if we reach top/bottom
 			wheelStep : 20,// scroll amount applied to each mouse wheel step
 			touchScrollStep : 200,// scroll amount applied when user is using gestures
+			addedOriginalClass: 'originalScrollableElement',
 			borderRadius: '7px',// sets border radius
 			railBorderRadius : '7px'// sets border radius of the rail
 		},
@@ -94,17 +95,29 @@ var Slimscroll = function(options){
 		rail,
 		bar,
 		barHeight,
-		minBarHeight = 30;
+		minBarHeight = 30,
+		mousedownPageY,
+		mousedownT,
+		isDragg,
+		currentBar,
+		currentTouchDif,
+		releaseScroll,
+		isOverBar,
+		percentScroll,
+		queueHide,
+		lastScroll,
+		isOverPanel;
 
 	this.init = function(){
 		// do it for every element that matches selector
 		for(var x=0; x<thisElements.length;x++){
-			var isOverPanel, isOverBar, isDragg, queueHide, touchDif,
-			barHeight, percentScroll, lastScroll,
-			divS = '<div></div>',
+			var touchDif,
+			barHeight,
+			divS = '<div></div>';
 			releaseScroll = false;
 			// used in event handlers and for better minification
 			me = thisElements[x];
+			classie.addClass(me,o.addedOriginalClass);
 
 			// ensure we are not binding it again
 			if( classie.hasClass(me.parentNode,o.wrapperClass) ){
@@ -204,7 +217,6 @@ var Slimscroll = function(options){
 			}
 
 			// wrap it
-			console.log("me",me);
 			domhelper.elementWrap(me,wrapper);
 
 			// append to parent div
@@ -213,145 +225,46 @@ var Slimscroll = function(options){
 
 			// set up initial height
 			getBarHeight();
+
+			// make it draggable and no longer dependent on the jqueryUI
+			bar.addEventListener("mousedown",mousedownEventHandler);
+			document.addEventListener("mouseup",mouseupEventHandler);
+			bar.addEventListener("selectstart",selectstartEventHandler);
+			bar.addEventListener("mouseover",mouseoverEventHandler);
+			bar.addEventListener("mouseleave",mouseleaveEventHandler);
+			bar.addEventListener('touchstart',scrollContainerTouchStartEventHandler);
+
+			rail.addEventListener("mouseover",railMouseOverEventHandler);
+			rail.addEventListener("mouseleave",railMouseLeaveEventHandler);
+
+			me.addEventListener("mouseover",scrollContainerMouseOverEventHandler);
+			me.addEventListener("mouseleave",scrollContainerMouseLeaveEventHandler);
+			me.addEventListener('DOMMouseScroll', mouseWheelEventHandler, false );
+			me.addEventListener('mousewheel', mouseWheelEventHandler, false );
 		}
-		/*
-			
 
-	        
+		// check start position
+		if (o.start === 'bottom'){
+			// scroll content to bottom
+			bar.style.top= me.offsetHeight - bar.offsetHeight;
+			scrollContent(0, true);
+		}
+		else if (o.start !== 'top'){
+			// assume jQuery selector
+			scrollContent( domhelper.getPosition(document.querSelector(o.start).top, null, true));
 
-	        // make it draggable and no longer dependent on the jqueryUI
-	        if (o.railDraggable){
-	          bar.bind("mousedown", function(e) {
-	            var $doc = $(document);
-	            isDragg = true;
-	            t = parseFloat(bar.css('top'));
-	            pageY = e.pageY;
-
-	            $doc.bind("mousemove.slimscroll", function(e){
-	              currTop = t + e.pageY - pageY;
-	              bar.css('top', currTop);
-	              scrollContent(0, bar.position().top, false);// scroll content
-	            });
-
-	            $doc.bind("mouseup.slimscroll", function(e) {
-	              isDragg = false;hideBar();
-	              $doc.unbind('.slimscroll');
-	            });
-	            return false;
-	          }).bind("selectstart.slimscroll", function(e){
-	            e.stopPropagation();
-	            e.preventDefault();
-	            return false;
-	          });
-	        }
-
-	        // on rail over
-	        rail.hover(function(){
-	          showBar();
-	        }, function(){
-	          hideBar();
-	        });
-
-	        // on bar over
-	        bar.hover(function(){
-	          isOverBar = true;
-	        }, function(){
-	          isOverBar = false;
-	        });
-
-	        // show on parent mouseover
-	        me.hover(function(){
-	          isOverPanel = true;
-	          showBar();
-	          hideBar();
-	        }, function(){
-	          isOverPanel = false;
-	          hideBar();
-	        });
-
-	        // support for mobile
-	        me.bind('touchstart', function(e,b){
-	          if (e.originalEvent.touches.length)
-	          {
-	            // record where touch started
-	            touchDif = e.originalEvent.touches[0].pageY;
-	          }
-	        });
-
-	        me.bind('touchmove', function(e){
-	          // prevent scrolling the page if necessary
-	          if(!releaseScroll)
-	          {
-				e.originalEvent.preventDefault();
-				}
-	          if (e.originalEvent.touches.length)
-	          {
-	            // see how far user swiped
-	            var diff = (touchDif - e.originalEvent.touches[0].pageY) / o.touchScrollStep;
-	            // scroll content
-	            scrollContent(diff, true);
-	            touchDif = e.originalEvent.touches[0].pageY;
-	          }
-
-        // check start position
-        if (o.start === 'bottom')
-        {
-          // scroll content to bottom
-          bar.css({ top: me.outerHeight() - bar.outerHeight() });
-          scrollContent(0, true);
-        }
-        else if (o.start !== 'top')
-        {
-          // assume jQuery selector
-          scrollContent($(o.start).position().top, null, true);
-
-          // make sure bar stays hidden
-          if (!o.alwaysVisible) { bar.hide(); }
-        }
-
-        // attach scroll events
-        attachWheel();
-
-        function _onWheel(e)
-        {
-          // use mouse wheel only when mouse is over
-          if (!isOverPanel) { return; }
-
-          var e = e || window.event;
-
-          var delta = 0;
-          if (e.wheelDelta) { delta = -e.wheelDelta/120; }
-          if (e.detail) { delta = e.detail / 3; }
-
-          var target = e.target || e.srcTarget || e.srcElement;
-          if ($(target).closest('.' + o.wrapperClass).is(me.parent())) {
-            // scroll content
-            scrollContent(delta, true);
-          }
-
-          // stop window scroll
-          if (e.preventDefault && !releaseScroll) { e.preventDefault(); }
-          if (!releaseScroll) { e.returnValue = false; }
-        }
-
-        
-
-        function attachWheel()
-        {
-          if (window.addEventListener)
-          {
-            this.addEventListener('DOMMouseScroll', _onWheel, false );
-            this.addEventListener('mousewheel', _onWheel, false );
-          }
-          else
-          {
-            document.attachEvent("onmousewheel", _onWheel)
-          }
-        }
-		*/
-	};
+			// make sure bar stays hidden
+			if (!o.alwaysVisible) {
+				domhelper.elementHideCss(bar);
+			}
+		}
+		document.addEventListener('touchmove',scrollContainerTouchMoveEventHandler);
+	}.bind(this);
 
 	function getBarHeight(){
+		if(!bar){
+			bar = currentBar;
+		}
 		// calculate scrollbar height and make sure it is not too small
 		barHeight = Math.max((me.offsetHeight / me.scrollHeight) * me.offsetHeight, minBarHeight);
 		bar.style.height= barHeight + 'px' ;
@@ -361,95 +274,223 @@ var Slimscroll = function(options){
 		bar.style.display= display;
 	}
 
-	function scrollContent(y, isWheel, isJump){
-		// releaseScroll = false;
-		// var delta = y;
-		// var maxTop = me.outerHeight() - bar.outerHeight();
+	function scrollContent(y, isWheel, isJump,element,bar,isTouch){
+		releaseScroll = false;
+		var delta = y;
+		me = element;
+		bar = (bar)? bar : me.parentNode.querySelector('.'+o.barClass);
+		var maxTop = me.offsetHeight - bar.offsetHeight;
 
-		// if (isWheel){
-		// 	// move bar with mouse wheel
-		// 	delta = parseInt(bar.css('top'),10) + y * parseInt(o.wheelStep,10) / 100 * bar.outerHeight();
+		if (isWheel){
+			// move bar with mouse wheel
+			delta = parseInt(bar.style.
+				top,10) + y * parseInt(o.wheelStep,10) / 100 * bar.offsetHeight;
 
-		// 	// move bar, make sure it doesn't go out
-		// 	delta = Math.min(Math.max(delta, 0), maxTop);
+			// move bar, make sure it doesn't go out
+			delta = Math.min(Math.max(delta, 0), maxTop);
 
-		// 	// if scrolling down, make sure a fractional change to the
-		// 	// scroll position isn't rounded away when the scrollbar's CSS is set
-		// 	// this flooring of delta would happened automatically when
-		// 	// bar.css is set below, but we floor here for clarity
-		// 	delta = (y > 0) ? Math.ceil(delta) : Math.floor(delta);
+			// if scrolling down, make sure a fractional change to the
+			// scroll position isn't rounded away when the scrollbar's CSS is set
+			// this flooring of delta would happened automatically when
+			// bar.css is set below, but we floor here for clarity
+			delta = (y > 0) ? Math.ceil(delta) : Math.floor(delta);
 
-		// 	// scroll the scrollbar
-		// 	bar.css({ top: delta + 'px' });
-		// }
+			// scroll the scrollbar
+			bar.style.top= delta + 'px';
+		}
+		else if(isTouch){
+			// calculate actual scroll amount
+			percentScroll = parseInt(bar.style.top,10) / (me.offsetHeight - bar.offsetHeight);
+			delta = percentScroll * (me.scrollHeight - me.offsetHeight);
 
-		// // calculate actual scroll amount
-		// percentScroll = parseInt(bar.css('top')) / (me.outerHeight() - bar.outerHeight());
-		// delta = percentScroll * (me[0].scrollHeight - me.outerHeight());
+			// scroll the scrollbar
+			bar.style.top= delta + 'px';
+		}
 
-		// if (isJump){
-		// 	delta = y;
-		// 	var offsetTop = delta / me[0].scrollHeight * me.outerHeight();
-		// 	offsetTop = Math.min(Math.max(offsetTop, 0), maxTop);
-		// 	bar.css({ top: offsetTop + 'px' });
-		// }
+		// calculate actual scroll amount
+		percentScroll = parseInt(bar.style.top,10) / (me.offsetHeight - bar.offsetHeight);
+		delta = percentScroll * (me.scrollHeight - me.offsetHeight);
 
-		// // scroll content
-		// me.scrollTop=delta;
+		if (isJump){
+			delta = y;
+			var offsetTop = delta / me.scrollHeight * me.offsetHeight;
+			offsetTop = Math.min(Math.max(offsetTop, 0), maxTop);
+			bar.style.top= offsetTop + 'px';
+		}
 
-		// // fire scrolling event
+		// scroll content
+		me.scrollTop=delta;
+
+		// console.log("delta",delta,"~~delta",~~delta);
+		// fire scrolling event
+		// me.dispatchEvent(slimScrollEvent)
+		var newevent = document.createEvent("Event");
+		newevent.initEvent('slimscrolling',true,true,"blah");
+		me.dispatchEvent(newevent, ~~delta);
 		// me.trigger('slimscrolling', ~~delta);
 
-		// // ensure bar is visible
-		// showBar();
+		// ensure bar is visible
+		showBar();
 
-		// // trigger hide when scroll is stopped
-		// hideBar();
+		// trigger hide when scroll is stopped
+		hideBar();
 	}
 	function showBar(){
 		// recalculate bar height
 		getBarHeight();
-		// clearTimeout(queueHide);
+		clearTimeout(queueHide);
 
-		// // when bar reached top or bottom
-		// if (percentScroll == ~~percentScroll){
-		// 	//release wheel
-		// 	releaseScroll = o.allowPageScroll;
+		// when bar reached top or bottom
+		if (percentScroll === ~~percentScroll){
+			//release wheel
+			releaseScroll = o.allowPageScroll;
 
-		// 	// publish approporiate event
-		// 	if (lastScroll != percentScroll)
-		// 	{
-		// 	var msg = (~~percentScroll == 0) ? 'top' : 'bottom';
-		// 	me.trigger('slimscroll', msg);
-		// 	}
-		// }
-		// else{
-		// 	releaseScroll = false;
-		// }
-		// lastScroll = percentScroll;
+			// publish approporiate event
+			if (lastScroll !== percentScroll){
+				var msg = (~~percentScroll === 0) ? 'top' : 'bottom';
+				var newevent = document.createEvent("Event");
+				newevent.initEvent('slimscroll',true,true);
+				me.dispatchEvent(newevent, msg);
+			}
+		}
+		else{
+			releaseScroll = false;
+		}
+		lastScroll = percentScroll;
 
-		// // show only when required
-		// if(barHeight >= me.outerHeight()) {
-		// 	//allow window scroll
-		// 	releaseScroll = true;
-		// 	return;
-		// }
-		// bar.stop(true,true).fadeIn('fast');
-		// if (o.railVisible) { 
-		// 	rail.stop(true,true).fadeIn('fast'); 
-		// }
+		// show only when required
+		if(barHeight >= me.offsetHeight) {
+			//allow window scroll
+			releaseScroll = true;
+			return;
+		}
+		bar.style.transition="opacity .5s";
+		bar.style.opacity=o.opacity;
+		if (o.railVisible) {
+			rail.style.transform="opacity .5s";
+			rail.style.opacity=1;
+		}
 	}
 
 	function hideBar(){
-		// // only hide when options allow it
-		// if (!o.alwaysVisible){
-		// 	queueHide = setTimeout(function(){
-		// 		if (!(o.disableFadeOut && isOverPanel) && !isOverBar && !isDragg){
-		// 			bar.fadeOut('slow');
-		// 			rail.fadeOut('slow');
-		// 		}
-		// 	}, 1000);
-		// }
+		// only hide when options allow it
+		if (!o.alwaysVisible){
+			queueHide = setTimeout(function(){
+				if (!(o.disableFadeOut && isOverPanel) && !isOverBar && !isDragg){
+					bar.style.transition="opacity 1s";
+					bar.style.opacity=0;
+					rail.style.transition="opacity 1s";
+					rail.style.opacity=0;
+				}
+			}, 500);
+		}
+	}
+
+	function mouseWheelEventHandler(e){
+		// use mouse wheel only when mouse is over
+		if (!isOverPanel) { return; }
+
+		var delta = 0;
+		if (e.wheelDelta) {
+			delta = -e.wheelDelta/120;
+		}
+		if (e.detail) {
+			delta = e.detail / 3;
+		}
+
+		var target = e.target;
+		var parentWrapper = domhelper.getParentElement(target,o.wrapperClass);
+		console.log("parentWrapper",parentWrapper);
+		console.log("me",me);
+		if (parentWrapper /* && parentWrapper.isEqualNode(me.parentNode)*/ ){
+			// scroll content
+			scrollContent(delta, true,null,parentWrapper.querySelector('.'+o.addedOriginalClass));
+		}
+		else{
+			console.log("not the right parent node");
+		}
+
+		// stop window scroll
+		if (!releaseScroll) {
+			e.preventDefault();
+		}
+	}
+
+	function mousedownEventHandler(e){
+		var eTarget = e.target;
+		currentBar = eTarget;
+		isDragg = true;
+		mousedownT = parseInt(eTarget.style.top,10);
+		mousedownPageY = e.pageY;
+		if(currentBar){
+			currentBar.addEventListener("mousemove",mousemoveEventHandler);
+		}
+		e.preventDefault();
+		return false;
+	}
+
+	function mousemoveEventHandler(e){
+		var currTop = mousedownT + e.pageY - mousedownPageY;
+		if(currentBar){
+			currentBar.style.top=currTop;
+			scrollContent(0, domhelper.getPosition(currentBar).top, false,me,currentBar);// scroll content
+		}
+	}
+
+	function mouseupEventHandler(e){
+		isDragg = false;
+		if(currentBar){
+			hideBar(currentBar);
+			currentBar.removeEventListener('mousemove',mousemoveEventHandler);
+		}
+	}
+
+	function mouseoverEventHandler(e){ isOverBar = true; }
+
+	function mouseleaveEventHandler(e){ isOverBar = false; }
+
+	function selectstartEventHandler(e){
+		// e.stopPropagation();
+		// e.preventDefault();
+		return false;
+	}
+
+	function railMouseOverEventHandler(e){ showBar(); }
+
+	function railMouseLeaveEventHandler(e){ hideBar(); }
+
+	function scrollContainerMouseOverEventHandler(e){
+		isOverPanel = true;
+		showBar(bar);
+		hideBar(bar);
+	}
+
+	function scrollContainerMouseLeaveEventHandler(e){
+		isOverPanel = true;
+		showBar(bar);
+		hideBar(bar);
+	}
+
+	function scrollContainerTouchStartEventHandler(e){
+		// console.log(e.target);
+		if (e.touches.length){
+			// record where touch started
+			currentTouchDif = e.touches[0].pageY;
+		}
+	}
+
+	function scrollContainerTouchMoveEventHandler(e){
+		// prevent scrolling the page if necessary
+		if(!releaseScroll){
+			e.preventDefault();
+		}
+		if(e.touches.length){
+			// see how far user swiped
+			var diff = (currentTouchDif - e.touches[0].pageY) / o.touchScrollStep;
+			// scroll content
+			scrollContent(diff, true,null,me,currentBar,true);
+			currentTouchDif = e.touches[0].pageY;
+		}
 	}
 };
 
@@ -607,9 +648,6 @@ var domhelper = {
 		var elementParent =element.parentNode,
 			element_clone = element.cloneNode(true);
 
-console.log("element",element);
-console.log("elementParent",elementParent);
-console.log("wrapperElement",wrapperElement);
 		elementParent.replaceChild(wrapperElement,element);
 		wrapperElement.appendChild(element);
 	},
@@ -2931,8 +2969,11 @@ process.argv = [];
 function noop() {}
 
 process.on = noop;
+process.addListener = noop;
 process.once = noop;
 process.off = noop;
+process.removeListener = noop;
+process.removeAllListeners = noop;
 process.emit = noop;
 
 process.binding = function (name) {
@@ -3541,8 +3582,8 @@ function hasOwnProperty(obj, prop) {
   return Object.prototype.hasOwnProperty.call(obj, prop);
 }
 
-}).call(this,require("/Users/yetse/Developer/github/yawetse/linotype/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":9,"/Users/yetse/Developer/github/yawetse/linotype/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":8,"inherits":7}],11:[function(require,module,exports){
+}).call(this,require("FWaASH"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{"./support/isBuffer":9,"FWaASH":8,"inherits":7}],11:[function(require,module,exports){
 /*
  * classie
  * http://github.amexpub.com/modules/classie

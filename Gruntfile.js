@@ -73,8 +73,6 @@ module.exports = function(grunt) {
           'example/test/test-callback.js': ['client/test/scripts/test_callback.js'],
           'example/test/test-fixedheaders.js': ['client/test/scripts/test_fixedheaders.js'],
           'example/test/test-scroll.js': ['client/test/scripts/test_scroll.js'],
-          'example/test/test-stroller.js': ['client/test/scripts/test-stroller.js'],
-          // 'build/main.js': ['client/scripts/**/*.js', 'client/scripts/**/*.coffee'],
         },
         options: {
           // transform: ['coffeeify']
@@ -89,25 +87,7 @@ module.exports = function(grunt) {
         },
         files: {
           "example/build/linotype.css": ['client/stylesheets/**/*.less'],
-          "example/build/stroller.css": ['client/stroller/**/*.less']
         }
-      }
-    },
-    copy: {
-      main: {
-        files: [
-          // includes files within path
-          // {expand: true, src: ['path/*'], dest: 'dest/', filter: 'isFile'},
-
-          // includes files within path and its sub-directories
-          // {expand: true, src: ['assets/**'], dest: '../module/assets/'},
-
-          // makes all src relative to cwd
-          // {expand: true, cwd: 'path/', src: ['**'], dest: 'dest/'},
-
-          // flattens results to a single level
-          // {expand: true, flatten: true, src: ['path/**'], dest: 'dest/', filter: 'isFile'}
-        ]
       }
     },
     watch: {
@@ -135,7 +115,6 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-simple-mocha');
   grunt.loadNpmTasks('grunt-jsbeautifier');
   grunt.loadNpmTasks('grunt-contrib-jshint');
-  grunt.loadNpmTasks('grunt-contrib-copy');
   grunt.loadNpmTasks('grunt-contrib-watch');
   grunt.loadNpmTasks('grunt-browserify');
   grunt.loadNpmTasks('grunt-contrib-less');

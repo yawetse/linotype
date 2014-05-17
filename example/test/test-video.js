@@ -44,6 +44,7 @@ var classie = require('classie'),
 	events = require('events'),
 	domhelper = require('domhelper'),
 	Slimscroll = require('slimscroll'),
+	Stroller = require('stroller'),
 	util = require('util');
 
 /**
@@ -96,7 +97,9 @@ var linotype = function(config_options){
 			'continuousVertical': false,
 			'animateAnchor': true,
 			'idSelector' : 'fullpage',
+			'stroll':null,
 			'normalScrollElementTouchThreshold': 5,
+			strollerEffect:'stroller-effect-zipper',
 
 			//events
 			'afterLoad': null,
@@ -125,10 +128,15 @@ var linotype = function(config_options){
 		touchStartY = 0,
 		touchStartX = 0,
 		touchEndY = 0,
-		touchEndX = 0;
+		touchEndX = 0,
+		linotypeStroller;
 
 	//extend default options
 	options = extend( defaults,config_options );
+
+	if(options.autoScrolling===false && options.stroll===null){
+		options.stroll=true;
+	}
 
 	/**
 	 * @exception {ConfigurationError} If conflicting scrolling options are set
@@ -141,7 +149,6 @@ var linotype = function(config_options){
 
 		throw new ConfigurationError("Option loopTop/loopBottom is mutually exclusive with continuousVertical; continuousVertical disabled");
 	}
-
 	/** @throws Disable mutually exclusive settings */
 	if (scrollDelay < 400) {
 	    options.continuousVertical = false;
@@ -352,6 +359,17 @@ var linotype = function(config_options){
 		}
 
 		var sections = container.getElementsByClassName('section');
+
+		if(options.stroll){
+			linotypeStroller = new Stroller({
+				strollerContainerQuerySelector:'#'+options.idSelector,
+				strollerItemQuerySelector:'.section',
+				fullscreen:true,
+				effect:options.strollerEffect
+			});
+		}
+
+
 		for(var index = 0; index < sections.length; index++){
 			var that = sections[index];
 			var $this = sections[index];
@@ -893,6 +911,9 @@ var linotype = function(config_options){
 
 	/** handle updating window hash location */
 	function windowOnHashChangeEvent(e){
+		if(options.stroll){
+			linotypeStroller.setFutureAndPastClass(document.querySelector('#'+options.idSelector));
+		}
 		if(!isScrolling){
 			var value =  window.location.hash.replace('#', '').split('/');
 			var section = value[0];
@@ -913,7 +934,9 @@ var linotype = function(config_options){
 
 	//window scroll event
 	function windowScrollEvent(e){
-		// console.log("window scroll");
+		if(options.stroll){
+			linotypeStroller.setFutureAndPastClass(document.querySelector('#'+options.idSelector));
+		}
 		var allSections = document.getElementsByClassName('section');
 		if(!options.autoScrolling){
 			var currentScroll = getScrollTop(window);
@@ -1153,7 +1176,7 @@ var linotype = function(config_options){
 	 * Scrolls to the given section and slide 
 	 */
 	function scrollPageAndSlide(destiny, slide){
-		// console.log("scrollPageAndSlide");
+		console.log("scrollPageAndSlide");
 		var section;
 		if (typeof slide === 'undefined') {
 		    slide = 0;
@@ -1236,6 +1259,10 @@ var linotype = function(config_options){
 		var scrollOptions = {}, scrolledElement,
 			dest = getPosition(element);
 
+		if(options.stroll){
+			linotypeStroller.setFutureAndPastClass(document.querySelector('#'+options.idSelector));
+		}
+
 		if(typeof dest === "undefined"){ return; } //there's no element to scroll, leaving the function
 		/** @todo  TODO: why does dest.bottom === jquery.position().top */
 		var dtop = dest.top,
@@ -1310,22 +1337,24 @@ var linotype = function(config_options){
 
 		// Fix section order after continuousVertical changes have been animated
 		var continuousVerticalFixSectionOrder = function () {
-			// If continuousVertical is in effect (and autoScrolling would also be in effect then), 
-			// finish moving the elements around so the direct navigation will function more simply
-			if (!wrapAroundElements || !wrapAroundElements.length) {
-				return;
-			}
+			if(options.continuousVertical){
+				// If continuousVertical is in effect (and autoScrolling would also be in effect then), 
+				// finish moving the elements around so the direct navigation will function more simply
+				if (!wrapAroundElements || !wrapAroundElements.length) {
+					return;
+				}
 
-			if (isMovementUp) {
-				insertAllBefore(document.querySelector('.section').parentNode.firstElementChild,wrapAroundElements);
-				// $('.section:first').before(wrapAroundElements);
-			}
-			else {
-				insertAllAfter(document.querySelector('.section').parentNode.lastElementChild,wrapAroundElements);
-				// $('.section:last').after(wrapAroundElements);
-			}
+				if (isMovementUp) {
+					insertAllBefore(document.querySelector('.section').parentNode.firstElementChild,wrapAroundElements);
+					// $('.section:first').before(wrapAroundElements);
+				}
+				else {
+					insertAllAfter(document.querySelector('.section').parentNode.lastElementChild,wrapAroundElements);
+					// $('.section:last').after(wrapAroundElements);
+				}
 
-			silentScroll(getPosition(activeSection).top);
+				silentScroll(getPosition(activeSection).top);
+			}
 		};
 
 		// Use CSS3 translate functionality or...
@@ -1811,7 +1840,7 @@ module.exports = linotype;
 if ( typeof window === "object" && typeof window.document === "object" ) {
 	window.linotype = linotype;
 }
-},{"classie":9,"domhelper":11,"events":4,"slimscroll":13,"util":8,"util-extend":15}],4:[function(require,module,exports){
+},{"classie":9,"domhelper":11,"events":4,"slimscroll":13,"stroller":15,"util":8,"util-extend":17}],4:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -3702,7 +3731,173 @@ module.exports = slimscroll;
 if ( typeof window === "object" && typeof window.document === "object" ) {
 	window.slimscroll = slimscroll;
 }
-},{"classie":9,"domhelper":11,"util-extend":15}],15:[function(require,module,exports){
+},{"classie":9,"domhelper":11,"util-extend":17}],15:[function(require,module,exports){
+/*
+ * stroller
+ * http://github.com/yawtese/stroller
+ *
+ * Copyright (c) 2014 Yaw Joseph Etse. All rights reserved.
+ */
+
+module.exports = require('./lib/stroller');
+
+},{"./lib/stroller":16}],16:[function(require,module,exports){
+/*
+ * slimscroll
+ * http://github.com/yawetse/stroller
+ *
+ * Copyright (c) 2014 Yaw Joseph Etse. All rights reserved.
+ */
+'use strict';
+
+var classie = require('classie'),
+	extend = require('util-extend'),
+	domhelper = require('domhelper');
+
+/**
+ * CSS3 list scroll effects, inspired by: http://lab.hakim.se/scroll-effects
+ * @{@link https://github.com/yawetse/stroller}
+ * @author Yaw Joseph Etse
+ * @copyright Copyright (c) 2014 Yaw Joseph Etse. All rights reserved.
+ * @license MIT
+ * @module stroller
+ * @requires module:classie
+ * @requires module:util-extent
+ * @requires module:util
+ * @requires module:events
+ * @todo need to switch to node events
+ */
+var stroller = function(options){
+	var effects = {
+			cards:'stroller-effect-cards',
+			grow:'stroller-effect-grow',
+			flip:'stroller-effect-flip',
+			fly:'stroller-effect-fly',
+			'fly-simplified':'stroller-effect-fly-simplified',
+			'fly-reverse':'stroller-effect-fly-reverse',
+			skew:'stroller-effect-skew',
+			helix:'stroller-effect-helix',
+			wave:'stroller-effect-wave',
+			fan:'stroller-effect-fan',
+			tilt:'stroller-effect-tilt',
+			curl:'stroller-effect-curl',
+			papercut:'stroller-effect-papercut',
+			zipper:'stroller-effect-zipper',
+			fade:'stroller-effect-fade',
+			twirl:'stroller-effect-twirl',
+		},
+		defaults = {
+			strollerContainerQuerySelector: '.strollerContainer',
+			strollerItemQuerySelector:'stroller',
+			strollerWrapperClass:'stroller-wrapper',
+			fullscreen:false,
+			effect:effects.flip
+		},
+		o = extend( defaults,options ),
+		elements = document.querySelectorAll(options.strollerContainerQuerySelector);
+	/**
+	 * set the stroller effect
+	 * @param {string} neweffect - string of new effect
+	 * @param {object} element - html element of stroller
+	 */
+	this.setStrollerEffect = function(neweffect,element){
+		var currentStroller;
+		if(element){
+			classie.removeClass(element,o.effect);
+			classie.addClass(element,neweffect);
+		}
+		else{
+			for(var x=0;x<elements.length;x++){
+				currentStroller = elements[x];
+				classie.removeClass(currentStroller,o.effect);
+				classie.addClass(currentStroller,neweffect);
+			}
+		}
+		o.effect = neweffect;
+	};
+
+	/**
+	 * get all effect options
+	 */
+	this.getEffects = function(){
+		return effects;
+	};
+
+	/**
+	 * create stroller elements
+	 */
+	this.init = function(){
+		var currentStroller,currentStrollerItemsArray,currentStrollerItem;
+		for(var x = 0; x <elements.length; x++){
+			currentStroller = elements[x];
+			this.setStrollerEffect(o.effect,currentStroller);
+
+			currentStrollerItemsArray = currentStroller.querySelectorAll(o.strollerItemQuerySelector);
+			for(var y = 0; y <currentStrollerItemsArray.length; y++){
+				currentStrollerItem = currentStrollerItemsArray[y];
+				classie.addClass(currentStrollerItem,'stroller-element');
+			}
+			var wrapperElement = document.createElement("div");
+			wrapperElement.setAttribute("class",o.strollerWrapperClass);
+			domhelper.elementWrap(currentStroller,wrapperElement);
+
+			currentStroller.addEventListener('scroll',strollerScrollEventHandler);
+
+		}
+	}.bind(this);
+
+	this.init();
+
+	var _setFutureAndPastClass = function(element){
+		var currentStroller = element,
+			strollerParent = currentStroller.parentNode,
+			strollerParentPosition = domhelper.getPosition(strollerParent),
+			strollerChildren = currentStroller.querySelectorAll('.stroller-element'),
+			strollerElement;
+
+		for(var x=0;x<strollerChildren.length;x++){
+			strollerElement = strollerChildren[x];
+			if(strollerParentPosition.top > (strollerElement.getBoundingClientRect().bottom) ){
+				classie.addClass( strollerElement , 'past');
+			}
+			else if(o.fullscreen && (0>strollerElement.getBoundingClientRect().bottom)){
+				classie.addClass( strollerElement , 'past');
+			}
+			else if(strollerParent.getBoundingClientRect().bottom < (strollerElement.getBoundingClientRect().top ) ){
+				classie.addClass( strollerElement , 'future');
+			}
+			else if( o.fullscreen && ( window.innerHeight < strollerElement.getBoundingClientRect().top ) ){
+				classie.addClass( strollerElement , 'future');
+			}
+			else{
+				classie.removeClass( strollerElement , 'past');
+				classie.removeClass( strollerElement , 'future');
+			}
+		}
+	};
+
+	function strollerScrollEventHandler(e){
+		_setFutureAndPastClass(e.target);
+	}
+
+	/**
+	 * update classes for stroller
+	 */
+	this.setFutureAndPastClass = _setFutureAndPastClass;
+
+	for(var x = 0; x <elements.length; x++){
+		this.setFutureAndPastClass(elements[x]);
+	}
+};
+
+module.exports = stroller;
+
+// If there is a window object, that at least has a document property,
+// define linotype
+if ( typeof window === "object" && typeof window.document === "object" ) {
+	window.stroller = stroller;
+}
+},{"classie":9,"domhelper":11,"util-extend":17}],17:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a

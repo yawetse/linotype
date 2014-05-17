@@ -191,3 +191,6 @@ body {
 .fullPage-tooltip.left {
   left: 20px;
 }
+.stroller-wrapper {
+  overflow: hidden;
+}
